@@ -1,6 +1,6 @@
 ; Inno Setup — Backup Toolkit. Signed single-file installer, compiled in CI.
 #define AppName "Backup Toolkit"
-#define AppVersion "1.0.2"
+#define AppVersion "1.0.3"
 
 [Setup]
 AppMutex=QuickOpen.BackupToolkit
@@ -24,7 +24,7 @@ WizardSmallImageFile=branding\wizard-small.bmp
 AppCopyright=Apache-2.0. 100%% AI-built, published on QuickOpen (quickopen.ai).
 VersionInfoCompany=QuickOpen
 VersionInfoProductName=Backup Toolkit
-VersionInfoVersion=1.0.2.0
+VersionInfoVersion=1.0.3.0
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesInstallIn64BitMode=x64compatible

@@ -91,11 +91,11 @@ TOKENS = {
     },
     "geometry": {
         "radius_card": 12, "radius_button": 10, "radius_input": 8,
-        "sidebar_w": 228, "header_h": 64, "pad": 24, "button_h": 34,
-        "row_h": 30,
+        "sidebar_w": 248, "header_h": 70, "pad": 24, "button_h": 38,
+        "row_h": 34,
     },
     "type": {
-        "title": 16, "heading": 13, "body": 10, "caption": 9, "section": 9,
+        "title": 19, "heading": 15, "body": 12, "caption": 11, "section": 11,
     },
 }
 
@@ -428,8 +428,30 @@ def _recolor_tracked():
                                  highlightthickness=0, borderwidth=0)
             elif role == "canvas":
                 widget.configure(bg=p["surface"], highlightthickness=0)
+            elif role == "menu":
+                style_menu(widget)
         except Exception:
             pass
+
+
+def style_menu(menu):
+    """Recursively theme a tk.Menu (dropdowns honor colors; the native
+    menubar strip does not — which is why AuraApp never installs one)."""
+    p = P()
+    try:
+        menu.configure(bg=p["surface"], fg=p["text"],
+                       activebackground=p["accent_soft"],
+                       activeforeground=p["text"],
+                       disabledforeground=p["faint"],
+                       borderwidth=0, relief="flat", tearoff=0)
+        end = menu.index("end")
+        if end is not None:
+            for i in range(end + 1):
+                if menu.type(i) == "cascade":
+                    sub = menu.nametowidget(menu.entrycget(i, "menu"))
+                    style_menu(sub)
+    except Exception:
+        pass
 
 
 def style_ttk(root, theme=None):
@@ -1161,6 +1183,49 @@ class AuraApp(ctk.CTk):
     # ---- theme ---------------------------------------------------------
     def _on_toggle_theme(self):
         self.set_theme("dark" if self._theme_switch.get() else "light")
+
+    def configure(self, cnf=None, **kw):
+        """Intercept ``config(menu=...)``: the native menubar strip is drawn
+        by the OS and stays light in dark mode, so Aura never installs one.
+        The menu becomes a styled dropdown behind a ☰ button in the header."""
+        menu = None
+        if isinstance(cnf, dict) and "menu" in cnf:
+            menu = cnf.pop("menu")
+        if "menu" in kw:
+            menu = kw.pop("menu")
+        if menu not in (None, ""):
+            self.attach_menu(menu)
+            if not kw and not cnf:
+                return None
+        return super().configure(cnf, **kw) if cnf else super().configure(**kw)
+
+    config = configure
+
+    def attach_menu(self, menu):
+        """Style *menu* and expose it via a ☰ header button (replaces the
+        native menubar)."""
+        self._aura_menu = menu
+        track(menu, "menu")
+        if getattr(self, "_menu_btn", None) is None:
+            self._menu_btn = AuraButton(self.header_actions, text="☰",
+                                        kind="ghost", width=40,
+                                        command=self._post_aura_menu)
+            self._menu_btn.pack(side="left", padx=(0, 6))
+
+    def _post_aura_menu(self):
+        m = getattr(self, "_aura_menu", None)
+        if m is None:
+            return
+        try:
+            style_menu(m)
+            x = self._menu_btn.winfo_rootx()
+            y = self._menu_btn.winfo_rooty() + self._menu_btn.winfo_height() + 4
+            m.tk_popup(x, y)
+        finally:
+            try:
+                m.grab_release()
+            except Exception:
+                pass
 
     def set_theme(self, theme):
         if theme not in ("light", "dark"):
