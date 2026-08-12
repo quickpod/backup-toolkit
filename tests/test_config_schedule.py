@@ -93,7 +93,9 @@ def test_cron_schedule_expressions():
 
 def test_build_crontab_line_shape():
     job = normalize_job({"name": "docs", "sources": ["s"], "destination": "d"})
-    line = schedule.build_crontab_line(job, "30m")
+    # pin a POSIX interpreter: the default (sys.executable) is a backslashed
+    # C:\...\python.exe on the Windows CI runner, which this shape test rejects
+    line = schedule.build_crontab_line(job, "30m", python_exe="/usr/bin/python3")
     assert line.startswith("*/30 * * * * ")
     assert line.endswith("# BackupToolkit-docs")
     assert "run" in line and "docs" in line
