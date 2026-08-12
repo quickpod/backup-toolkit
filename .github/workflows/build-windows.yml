@@ -12,7 +12,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deps
-        run: python -m pip install --upgrade pip pyinstaller pytest
+        run: python -m pip install --upgrade pip -r requirements.txt pyinstaller pytest
       - name: Run tests
         run: python -m pytest -q
       - name: Build BackupToolkit.exe
@@ -20,7 +20,9 @@ jobs:
           pyinstaller --onefile --windowed --name BackupToolkit
           --icon backup-toolkit.ico
           --version-file packaging/version.txt
+          --hidden-import backupkit.__main__
           --add-data "backup-toolkit.ico;."
+          --collect-all customtkinter
           backup_app.py
       - name: Stage installer inputs
         shell: pwsh
@@ -40,4 +42,10 @@ jobs:
           path: |
             dist/BackupToolkit.exe
             packaging/dist/BackupToolkit-Setup.exe
+          if-no-files-found: error
+      - name: Upload staging (for signed repack)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-toolkit-staging
+          path: packaging/staging
           if-no-files-found: error
