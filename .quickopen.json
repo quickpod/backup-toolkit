@@ -1,0 +1,13 @@
+{
+  "slug": "backup-toolkit",
+  "name": "Backup Toolkit",
+  "tagline": "Scheduled, versioned local/USB/network backups with integrity verification \u2014 a sibling to SecureVault.",
+  "categorySlug": "backup-sync",
+  "license": "Apache-2.0",
+  "description": "Define backup jobs that copy folders to a local disk, USB drive or network share on a schedule, keeping timestamped versions and pruning old ones by count or age. Mirror or incremental modes, include/exclude filters, and SHA256 integrity verification of every backed-up file with a restore browser. Everything runs on your machine; your data never leaves it.",
+  "aiStack": "Python (tkinter + CLI, stdlib)",
+  "platforms": [
+    "windows"
+  ],
+  "buildEntry": "backup_app.py"
+}

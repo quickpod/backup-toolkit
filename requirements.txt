@@ -1,0 +1,1 @@
+# Backup Toolkit runtime deps — permissive/weak-copyleft only, no AGPL/proprietary.
