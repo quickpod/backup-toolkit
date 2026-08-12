@@ -80,10 +80,78 @@ def test_schedule_command_building_cross_platform():
         schedule.build_schtasks_create(job, "not-an-interval")
 
 
-def test_register_is_noop_off_windows():
+def test_cron_schedule_expressions():
+    assert schedule.cron_schedule("30m") == "*/30 * * * *"
+    assert schedule.cron_schedule("90m") == "0 * * * *"  # >=60min falls back hourly
+    assert schedule.cron_schedule("2h") == "0 */2 * * *"
+    assert schedule.cron_schedule("hourly") == "0 * * * *"
+    assert schedule.cron_schedule("daily") == "0 3 * * *"
+    assert schedule.cron_schedule("24h") == "0 3 * * *"
+    with pytest.raises(BackupKitError):
+        schedule.cron_schedule("nope")
+
+
+def test_build_crontab_line_shape():
     job = normalize_job({"name": "docs", "sources": ["s"], "destination": "d"})
+    line = schedule.build_crontab_line(job, "30m")
+    assert line.startswith("*/30 * * * * ")
+    assert line.endswith("# BackupToolkit-docs")
+    assert "run" in line and "docs" in line
+    # No Windows-isms leaked into the POSIX command line.
+    assert "schtasks" not in line
+    assert "\\" not in line
+
+
+@pytest.mark.skipif(os.name == "nt", reason="cron backend is used off Windows")
+def test_register_uses_cron_off_windows(monkeypatch):
+    """On AIQuick/Linux, register auto-detects and installs a cron entry.
+
+    crontab I/O is monkeypatched so the host's real crontab is never touched.
+    """
+    job = normalize_job({"name": "docs", "sources": ["s"], "destination": "d"})
+    fake = {"text": "# an unrelated user job\n0 5 * * * echo hi\n"}
+
+    def _read():
+        return fake["text"]
+
+    def _write(text):
+        fake["text"] = text
+
+    monkeypatch.setattr(schedule, "_read_crontab", _read)
+    monkeypatch.setattr(schedule, "_write_crontab", _write)
+
     rep = schedule.register(job, "1h")
-    if os.name != "nt":
-        assert rep["supported"] is False
-        assert rep["command"][0] == "schtasks"
-        assert "Windows-only" in rep["message"]
+    assert rep["supported"] is True
+    assert rep["backend"] == "cron"
+    assert rep["ok"] is True
+    # The user's unrelated line survives; our marked line is added.
+    assert "echo hi" in fake["text"]
+    assert "# BackupToolkit-docs" in fake["text"]
+
+    # Re-registering replaces (does not duplicate) our line.
+    schedule.register(job, "30m")
+    assert fake["text"].count("# BackupToolkit-docs") == 1
+    assert "*/30 * * * *" in fake["text"]
+
+    # Unregister removes only our line.
+    rep2 = schedule.unregister(job)
+    assert rep2["backend"] == "cron"
+    assert rep2["ok"] is True
+    assert "# BackupToolkit-docs" not in fake["text"]
+    assert "echo hi" in fake["text"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Scheduled Task backend is Windows-only")
+def test_register_uses_schtasks_on_windows(monkeypatch):
+    job = normalize_job({"name": "docs", "sources": ["s"], "destination": "d"})
+
+    class _Proc:
+        returncode = 0
+        stdout = "SUCCESS"
+        stderr = ""
+
+    monkeypatch.setattr(schedule.subprocess, "run", lambda *a, **k: _Proc())
+    rep = schedule.register(job, "1h")
+    assert rep["backend"] == "schtasks"
+    assert rep["command"][0] == "schtasks"
+    assert rep["ok"] is True
