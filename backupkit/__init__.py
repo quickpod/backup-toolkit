@@ -36,7 +36,7 @@ from .verify import verify_backup
 from .restore import list_versions, restore
 from . import schedule
 
-__version__ = "1.0.0"
+__version__ = "1.0.7"
 
 __all__ = [
     "BackupKitError",
